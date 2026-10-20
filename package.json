@@ -1,0 +1,17 @@
+{
+  "name": "cloudcourt",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A multi-agent cloud architecture review council with deterministic policy enforcement.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 execute cloudcourt-db --local --file=./schema.sql",
+    "db:remote": "wrangler d1 execute cloudcourt-db --remote --file=./schema.sql",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.3"
+  }
+}

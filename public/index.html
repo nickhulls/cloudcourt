@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CloudCourt is a multi-agent architecture review council for AWS, Azure and multi-cloud changes.">
+  <meta property="og:title" content="CloudCourt - Put cloud changes on trial">
+  <meta property="og:description" content="Seven AI specialists review, challenge and vote on cloud architecture changes, with a deterministic policy gate and tamper-evident record.">
+  <title>CloudCourt - Multi-agent architecture review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="CloudCourt home">
+      <span class="brand-mark">CC</span>
+      <span>CLOUDCOURT</span>
+    </a>
+    <div class="system-state"><span class="pulse"></span> COUNCIL ONLINE</div>
+    <a class="text-link" href="#method">HOW IT WORKS <span>↗</span></a>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="eyebrow">MULTI-AGENT CLOUD GOVERNANCE / EXPERIMENT 001</div>
+      <h1>Put cloud changes<br><span>on trial.</span></h1>
+      <p class="lede">Seven specialist agents review the same architecture independently. A deterministic policy gate holds the veto. Every vote becomes evidence.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="#review">CONVENE THE COUNCIL <span>↓</span></a>
+        <button class="button ghost" id="load-demo">LOAD RISKY EXAMPLE</button>
+      </div>
+      <div class="hero-rule"></div>
+      <div class="proof-strip">
+        <div><strong>07</strong><span>Independent reviewers</span></div>
+        <div><strong>01</strong><span>Deterministic veto</span></div>
+        <div><strong>SHA-256</strong><span>Evidence chain</span></div>
+        <div><strong>LIVE</strong><span>Single vs council test</span></div>
+      </div>
+    </section>
+
+    <section class="chamber" aria-label="CloudCourt council members">
+      <div class="section-label">THE COUNCIL</div>
+      <div class="council-stage">
+        <div class="orbital"></div>
+        <div class="judge judge-1"><i>SE</i><b>SECURITY</b><span>Attack surface</span></div>
+        <div class="judge judge-2"><i>IA</i><b>IDENTITY</b><span>Least privilege</span></div>
+        <div class="judge judge-3"><i>NW</i><b>NETWORK</b><span>Trust boundaries</span></div>
+        <div class="judge judge-4"><i>SR</i><b>RELIABILITY</b><span>Failure modes</span></div>
+        <div class="judge judge-5"><i>FO</i><b>FINOPS</b><span>Unit economics</span></div>
+        <div class="judge judge-6"><i>CO</i><b>COMPLIANCE</b><span>Control evidence</span></div>
+        <div class="judge judge-7"><i>PA</i><b>PLATFORM</b><span>Operability</span></div>
+        <div class="center-seal"><span>CC</span><small>POLICY HOLDS<br>THE VETO</small></div>
+      </div>
+    </section>
+
+    <section class="review-section" id="review">
+      <div class="review-heading">
+        <div>
+          <div class="section-label">SUBMIT A CHANGE</div>
+          <h2>The court will hear it now.</h2>
+        </div>
+        <p>Use a synthetic or sanitized proposal. Never submit credentials, production secrets, customer information or confidential architecture.</p>
+      </div>
+
+      <form id="review-form" class="review-form">
+        <div class="field-row">
+          <label>CASE TITLE<input id="title" name="title" maxlength="120" value="Customer API production release"></label>
+          <label>CLOUD
+            <select id="provider" name="provider">
+              <option>AWS</option><option>Azure</option><option>GCP</option><option>Multi-cloud</option><option>Cloudflare</option>
+            </select>
+          </label>
+        </div>
+        <label>PROPOSED ARCHITECTURE OR CHANGE
+          <textarea id="proposal" name="proposal" maxlength="6000" placeholder="Describe the components, data flow, permissions, network exposure, resilience and deployment plan..."></textarea>
+        </label>
+        <div class="form-footer">
+          <span id="character-count">0 / 6,000</span>
+          <button class="button primary submit-button" type="submit">CONVENE 7 REVIEWERS <span>→</span></button>
+        </div>
+      </form>
+
+      <div id="progress" class="progress-panel hidden" aria-live="polite">
+        <div class="scan-line"></div>
+        <div class="progress-head"><span id="progress-label">Clerk is preparing the case...</span><strong id="progress-percent">08%</strong></div>
+        <div class="progress-track"><i id="progress-bar"></i></div>
+        <div class="progress-agents" id="progress-agents"></div>
+      </div>
+
+      <section id="results" class="results hidden" aria-live="polite">
+        <div class="verdict-header">
+          <div>
+            <div class="section-label">FINAL ORDER</div>
+            <h2 id="result-title">Council verdict</h2>
+          </div>
+          <div class="verdict-stamp" id="verdict-stamp">PENDING</div>
+        </div>
+        <div class="result-grid">
+          <article class="risk-card">
+            <span>COMPOSITE RISK</span>
+            <div class="risk-score"><strong id="risk-score">0</strong><small>/100</small></div>
+            <div class="risk-meter"><i id="risk-meter"></i></div>
+            <p id="decision-basis"></p>
+          </article>
+          <article class="summary-card">
+            <span>COUNCIL SUMMARY</span>
+            <h3 id="council-summary"></h3>
+            <ul id="blockers"></ul>
+          </article>
+          <article class="comparison-card">
+            <span>THE EXPERIMENT</span>
+            <h3>Single model vs council</h3>
+            <div class="compare-row"><small>SINGLE</small><b id="single-vote">-</b><em id="single-risk">-</em></div>
+            <div class="compare-row"><small>COUNCIL</small><b id="council-vote">-</b><em id="council-risk">-</em></div>
+            <p id="comparison-note"></p>
+          </article>
+        </div>
+
+        <div class="section-label result-label">PRIVATE VOTES</div>
+        <div class="reviewer-grid" id="reviewer-grid"></div>
+
+        <div class="evidence-panel">
+          <div class="evidence-head"><div><span class="section-label">THE RECORD</span><h3>Tamper-evident event chain</h3></div><button id="copy-link" class="button ghost small">COPY CASE LINK</button></div>
+          <div class="timeline" id="timeline"></div>
+          <div class="chain-head"><span>CHAIN HEAD</span><code id="chain-hash"></code></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="method" id="method">
+      <div class="section-label">THE METHOD</div>
+      <h2>Persuasion is not proof.</h2>
+      <p class="method-lede">Multi-agent systems often sound more rigorous because they produce more discussion. CloudCourt measures whether the council actually changes a decision and preserves the evidence required to inspect why.</p>
+      <div class="method-grid">
+        <article><b>01</b><h3>Independent reading</h3><p>Each specialist reviews the same sanitized change before seeing another agent's conclusion.</p></article>
+        <article><b>02</b><h3>Policy before prose</h3><p>Critical controls are evaluated in code. An eloquent model cannot talk the gate out of a veto.</p></article>
+        <article><b>03</b><h3>Measured disagreement</h3><p>The system records whether the full council changes the single architecture agent's initial result.</p></article>
+        <article><b>04</b><h3>Evidence by design</h3><p>Every case event includes the previous event's SHA-256 hash, creating a verifiable chain.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div><strong>CLOUDCOURT</strong><span>An independent experiment by Nishant Gupta</span></div>
+    <p>Built with Cloudflare Workers, Workers AI and D1. Research prototype, not production approval or security advice.</p>
+  </footer>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
