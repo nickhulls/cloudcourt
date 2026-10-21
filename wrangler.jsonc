@@ -15,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "cloudcourt-db",
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "0112a88f-d570-47d7-bcc7-524a0457e093"
     }
   ],
   "observability": { "enabled": true }
