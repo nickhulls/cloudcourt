@@ -40,6 +40,12 @@ Each specialist receives the complete proposal, a domain-specific review rubric 
 
 The council uses seven separate role-prompted calls to the same model, with no access to other reviewers' votes. It does not implement a debate round or independent model diversity. Comparing one run's votes is exploratory; proving better risk detection requires a labelled evaluation set. Every result records whether it came from Workers AI or the rules fallback.
 
+## Two-case demo
+
+Click **LOAD RISKY EXAMPLE** to fill the AWS payment API with exposed data, excessive privilege and missing recovery controls. Click **CONVENE 7 REVIEWERS** to run the live review; the critical policy findings enforce rejection.
+
+Then click **LOAD ACCEPTED EXAMPLE** to load the corrected version of the same API. The title, cloud and proposal are replaced and the previous result is cleared. Click **CONVENE 7 REVIEWERS** again. The corrected input documents synthetic control and test evidence; it is not evidence of a real deployed AWS system. It passed a live check with seven Workers AI approvals, risk 15 and no fallback on 21 October 2026. Each run makes fresh model calls, so approval and the exact score are not guaranteed. The examples never override the policy gate or reviewer votes.
+
 ## Run locally
 
 ```bash

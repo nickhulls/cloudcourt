@@ -1,3 +1,5 @@
+import { DEMO_CASES } from "./examples.js";
+
 const form = document.querySelector("#review-form");
 const proposal = document.querySelector("#proposal");
 const count = document.querySelector("#character-count");
@@ -8,14 +10,20 @@ const progressLabel = document.querySelector("#progress-label");
 const progressPercent = document.querySelector("#progress-percent");
 const agentProgress = document.querySelector("#progress-agents");
 const reviewerNames = ["Security", "Identity", "Network", "Reliability", "FinOps", "Compliance", "Platform"];
-const riskyDemo = `We plan to release a customer-facing payment API on AWS. The Application Load Balancer accepts traffic from 0.0.0.0/0 and forwards to containers in public subnets. The service uses an IAM administrator wildcard policy so deployment is faster. A static API key is embedded in the container environment. Transaction exports are written to a publicly accessible S3 bucket without encryption. To meet the launch date, we will deploy without rollback and skip monitoring for the first week.`;
+const exampleButtons = [...document.querySelectorAll("[data-demo]")];
 
 proposal.addEventListener("input", () => { count.textContent = `${proposal.value.length.toLocaleString()} / 6,000`; });
-document.querySelector("#load-demo").addEventListener("click", () => {
-  proposal.value = riskyDemo;
-  count.textContent = `${proposal.value.length.toLocaleString()} / 6,000`;
-  document.querySelector("#review").scrollIntoView({ behavior: "smooth" });
-});
+for (const button of exampleButtons) {
+  button.addEventListener("click", () => {
+    const example = DEMO_CASES[button.dataset.demo];
+    form.elements.title.value = example.title;
+    form.elements.provider.value = example.provider;
+    proposal.value = example.proposal;
+    count.textContent = `${proposal.value.length.toLocaleString()} / 6,000`;
+    results.classList.add("hidden");
+    document.querySelector("#review").scrollIntoView({ behavior: "smooth" });
+  });
+}
 
 function setProgress(value, label) {
   progressBar.style.width = `${value}%`;
@@ -84,6 +92,7 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const submit = form.querySelector("button[type=submit]");
   submit.disabled = true;
+  exampleButtons.forEach(button => { button.disabled = true; });
   const timer = startProgress();
   try {
     const response = await fetch("/api/review", {
@@ -95,12 +104,15 @@ form.addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error(data.error || "The council could not complete this review.");
     clearInterval(timer);
     setProgress(100, "Verdict sealed.");
-    setTimeout(() => render(data), 250);
+    render(data);
   } catch (error) {
     clearInterval(timer);
     progress.classList.add("hidden");
     alert(error.message);
-  } finally { submit.disabled = false; }
+  } finally {
+    submit.disabled = false;
+    exampleButtons.forEach(button => { button.disabled = false; });
+  }
 });
 
 document.querySelector("#copy-link").addEventListener("click", async (event) => {

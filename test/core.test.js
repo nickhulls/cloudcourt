@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { deterministicChecks, policyVerdict, aggregateRisk, REVIEWERS, fallbackReview } from "../src/core.js";
+import { DEMO_CASES } from "../public/examples.js";
+
+test("built-in demo pair contrasts a policy veto with a policy-clear corrected design", () => {
+  for (const example of Object.values(DEMO_CASES)) {
+    assert.ok(example.proposal.length >= 40 && example.proposal.length <= 6000);
+  }
+  assert.equal(policyVerdict(deterministicChecks(DEMO_CASES.risky.proposal)), "REJECT");
+  assert.deepEqual(deterministicChecks(DEMO_CASES.accepted.proposal), []);
+});
 
 test("blocks a public database with wildcard IAM", () => {
   const findings = deterministicChecks("Deploy an internet-facing SQL database with public access and an IAM wildcard policy Action: *.*");
