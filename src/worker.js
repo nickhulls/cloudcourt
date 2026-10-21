@@ -19,26 +19,44 @@ const json = (value, status = 200) => new Response(JSON.stringify(value), {
 });
 
 function extractJSON(output) {
-  const text = typeof output === "string" ? output : output?.response || output?.result?.response || "";
+  const result = output?.result ?? output;
+  const choice = result?.choices?.[0];
+  if (choice?.finish_reason === "length") throw new Error("Model response was truncated");
+  const content = choice?.message?.content;
+  const text = typeof result === "string" ? result
+    : result?.response || (Array.isArray(content)
+      ? content.filter(part => part.type === "text").map(part => part.text).join("")
+      : content) || "";
   const match = String(text).match(/\{[\s\S]*\}/);
   if (!match) throw new Error("Model did not return JSON");
-  return JSON.parse(match[0]);
+  const review = JSON.parse(match[0]);
+  if (!["APPROVE", "CONDITIONAL", "REJECT"].includes(review?.vote)
+    || !Number.isFinite(review.risk_score) || !Number.isFinite(review.confidence)
+    || typeof review.headline !== "string" || !review.headline.trim()
+    || typeof review.reasoning !== "string" || !review.reasoning.trim()
+    || !Array.isArray(review.conditions) || !review.conditions.every(item => typeof item === "string")) {
+    throw new Error("Model returned an incomplete review");
+  }
+  return review;
 }
 
 async function askReviewer(env, reviewer, proposal, provider, findings) {
-  if (!env.AI) return fallbackReview(reviewer, findings);
+  const fallback = reason => ({ ...fallbackReview(reviewer, findings), source: "fallback", fallback_reason: reason });
+  if (!env.AI) return fallback("ai_unavailable");
   const system = `You are the ${reviewer.name} member of CloudCourt, an independent cloud architecture review council. Your exclusive mandate is ${reviewer.focus}. Review evidence skeptically. Do not invent missing controls. Return only strict JSON with keys vote (APPROVE, CONDITIONAL, or REJECT), risk_score (0-100), headline, reasoning, conditions (array of at most 4 concise strings), confidence (0-100).`;
   const user = `Cloud provider: ${provider}\n\nProposed change:\n${proposal}\n\nDeterministic policy findings:\n${JSON.stringify(findings)}\n\nCast an independent vote before seeing any other reviewer.`;
   try {
     const response = await env.AI.run(MODEL, {
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      max_tokens: 650,
+      max_completion_tokens: 1200,
+      chat_template_kwargs: { enable_thinking: false },
+      response_format: { type: "json_object" },
       temperature: 0.2
     });
-    return normalizeReview(extractJSON(response), reviewer);
+    return { ...normalizeReview(extractJSON(response), reviewer), source: "workers_ai" };
   } catch (error) {
     console.warn(`Reviewer ${reviewer.id} fell back:`, error?.message);
-    return fallbackReview(reviewer, findings);
+    return fallback("inference_or_format_error");
   }
 }
 
@@ -150,12 +168,16 @@ async function review(request, env) {
     policy_findings: findings,
     council: chair,
     comparison: {
-      single_agent: { vote: singleReviewer.vote, risk_score: singleReviewer.risk_score, headline: singleReviewer.headline },
+      single_agent: { vote: singleReviewer.vote, risk_score: singleReviewer.risk_score, headline: singleReviewer.headline, source: singleReviewer.source },
       council: { vote: chair.verdict, risk_score: riskScore },
       changed: singleReviewer.vote !== chair.verdict
     },
     events,
-    evidence: { persisted, chain_head: events.at(-1)?.event_hash, model: MODEL, latency_ms: Date.now() - started }
+    evidence: {
+      persisted, chain_head: events.at(-1)?.event_hash, model: MODEL, latency_ms: Date.now() - started,
+      ai_reviews: reviews.filter(review => review.source === "workers_ai").length,
+      fallback_reviews: reviews.filter(review => review.source === "fallback").length
+    }
   });
 }
 

@@ -44,7 +44,11 @@ function render(data) {
   document.querySelector("#risk-score").textContent = data.case.risk_score;
   document.querySelector("#risk-meter").style.width = `${data.case.risk_score}%`;
   document.querySelector("#decision-basis").textContent = data.council.decision_basis;
-  document.querySelector("#council-summary").textContent = data.council.summary;
+  const aiCount = data.evidence.ai_reviews;
+  const sourceSummary = Number.isInteger(aiCount)
+    ? ` Workers AI: ${aiCount}/7 reviewers. Rules fallback: ${data.evidence.fallback_reviews}/7.`
+    : " Review sources were not recorded by this version.";
+  document.querySelector("#council-summary").textContent = data.council.summary + sourceSummary;
   document.querySelector("#blockers").innerHTML = data.council.blockers.length
     ? data.council.blockers.map((item) => `<li>${escapeHTML(item)}</li>`).join("")
     : "<li>No blocking condition identified in the submitted evidence.</li>";
@@ -52,12 +56,14 @@ function render(data) {
   document.querySelector("#single-risk").textContent = `${data.comparison.single_agent.risk_score}/100`;
   document.querySelector("#council-vote").textContent = data.comparison.council.vote;
   document.querySelector("#council-risk").textContent = `${data.comparison.council.risk_score}/100`;
-  document.querySelector("#comparison-note").textContent = data.comparison.changed
+  document.querySelector("#comparison-note").textContent = aiCount !== 7 || data.comparison.single_agent.source !== "workers_ai"
+    ? "This run includes fallback or unverified results. A live single-model versus council comparison requires all eight AI reviews to succeed."
+    : data.comparison.changed
     ? "The council changed the single architecture reviewer's initial decision."
     : "The council preserved the single reviewer's decision; compare the risk score and reasoning depth.";
   document.querySelector("#reviewer-grid").innerHTML = data.reviewers.map((review) => `
     <article class="reviewer-card">
-      <div class="reviewer-top"><span class="reviewer-avatar" style="color:${escapeHTML(review.color)}">${escapeHTML(review.initials)}</span><div><h4>${escapeHTML(review.reviewer)}</h4><small>CONFIDENCE ${escapeHTML(review.confidence)}%</small></div></div>
+      <div class="reviewer-top"><span class="reviewer-avatar" style="color:${escapeHTML(review.color)}">${escapeHTML(review.initials)}</span><div><h4>${escapeHTML(review.reviewer)}</h4><small>${review.source === "workers_ai" ? "WORKERS AI" : review.source === "fallback" ? "RULES FALLBACK" : "SOURCE UNVERIFIED"} | CONFIDENCE ${escapeHTML(review.confidence)}%</small></div></div>
       <span class="reviewer-score">RISK ${escapeHTML(review.risk_score)}</span>
       <span class="vote ${escapeHTML(review.vote)}">${escapeHTML(review.vote)}</span>
       <h5>${escapeHTML(review.headline)}</h5>
