@@ -109,3 +109,32 @@ for (const [name, output] of [
     assert.equal(body.evidence.fallback_reviews, 7);
   });
 }
+
+test("specialist hint isolation preserves full evidence and the final policy veto", async () => {
+  const proposal = "Deploy an internet-facing SQL database with public access, an embedded plaintext API key, an IAM administrator wildcard policy, and no rollback or monitoring.";
+  const inputs = [];
+  const response = await worker.fetch(new Request("https://cloudcourt.test/api/review", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "AWS", proposal })
+  }), {
+    ...env, AI: { run: async (_model, input) => {
+      inputs.push(input);
+      return { choices: [{ message: { content: JSON.stringify({ ...modelReview, vote: "APPROVE", risk_score: 10 }) } }] };
+    } }
+  });
+  const body = await response.json();
+  const payloads = inputs.map(input => JSON.parse(input.messages[1].content));
+  assert.equal(payloads.length, 8);
+  assert.ok(payloads.every(payload => payload.proposal === proposal));
+  const hintIds = payload => payload.policy_hints.map(hint => hint.id);
+  assert.deepEqual(hintIds(payloads[0]), body.policy_findings.map(hint => hint.id));
+  const finops = inputs.findIndex(input => input.messages[0].content.startsWith("You are the FinOps member"));
+  const reliability = inputs.findIndex(input => input.messages[0].content.startsWith("You are the Reliability member"));
+  assert.deepEqual(hintIds(payloads[finops]), []);
+  assert.deepEqual(hintIds(payloads[reliability]), ["no-rollback", "missing-observability"]);
+  assert.ok(body.reviewers.every(review => review.vote === "APPROVE"));
+  assert.equal(body.comparison.single_agent.vote, "APPROVE");
+  assert.equal(body.council.verdict, "REJECT");
+  assert.equal(body.evidence.ai_reviews, 7);
+  assert.equal(body.evidence.prompt_version, "specialist-v2");
+});

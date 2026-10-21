@@ -8,6 +8,20 @@ export const REVIEWERS = [
   { id: "platform", name: "Platform Architecture", initials: "PA", color: "#90a4ff", focus: "operability, standards, portability and long-term maintainability" }
 ];
 
+const POLICY_DOMAINS = {
+  security: ["public-data", "embedded-secret", "unencrypted"],
+  iam: ["wildcard-iam", "embedded-secret"],
+  network: ["public-data", "unencrypted"],
+  sre: ["no-rollback", "missing-observability"],
+  finops: [],
+  compliance: ["public-data", "embedded-secret", "unencrypted", "missing-observability"],
+  platform: ["no-rollback", "missing-observability", "wildcard-iam"]
+};
+
+export function findingsForReviewer(reviewer, findings) {
+  return findings.filter(finding => (POLICY_DOMAINS[reviewer.id] || []).includes(finding.id));
+}
+
 export function deterministicChecks(text) {
   const source = text.toLowerCase();
   const checks = [
@@ -89,18 +103,7 @@ export function normalizeReview(raw, reviewer) {
 }
 
 export function fallbackReview(reviewer, findings) {
-  const relevant = findings.filter((finding) => {
-    const map = {
-      security: ["public-data", "embedded-secret", "unencrypted"],
-      iam: ["wildcard-iam", "embedded-secret"],
-      network: ["public-data", "unencrypted"],
-      sre: ["no-rollback", "missing-observability"],
-      finops: [],
-      compliance: ["public-data", "embedded-secret", "unencrypted", "missing-observability"],
-      platform: ["no-rollback", "missing-observability", "wildcard-iam"]
-    };
-    return map[reviewer.id].includes(finding.id);
-  });
+  const relevant = findingsForReviewer(reviewer, findings);
   const critical = relevant.some((finding) => finding.severity === "critical");
   return normalizeReview({
     vote: critical ? "REJECT" : relevant.length ? "CONDITIONAL" : "APPROVE",

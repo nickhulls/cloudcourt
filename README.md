@@ -36,6 +36,10 @@ flowchart LR
 
 The agents provide specialized judgment. Code owns mandatory controls and the final veto. D1 stores the case and event chain. The public UI never asks for cloud credentials and warns users to submit only synthetic or sanitized designs.
 
+Each specialist receives the complete proposal, a domain-specific review rubric and only relevant heuristic policy hints. FinOps assesses cost drivers and spend evidence; Reliability assesses availability, restoration and rollback. The single-reviewer baseline assesses all seven domains. Missing details are treated as unknowns, and public API ingress is distinguished from an exposed data service. The policy gate still evaluates every finding for the final decision.
+
+The council uses seven separate role-prompted calls to the same model, with no access to other reviewers' votes. It does not implement a debate round or independent model diversity. Comparing one run's votes is exploratory; proving better risk detection requires a labelled evaluation set. Every result records whether it came from Workers AI or the rules fallback.
+
 ## Run locally
 
 ```bash
