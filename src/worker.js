@@ -89,11 +89,19 @@ function deterministicChair(reviews, findings) {
   const policy = policyVerdict(findings);
   const rejected = reviews.filter((review) => review.vote === "REJECT").length;
   const conditional = reviews.filter((review) => review.vote === "CONDITIONAL").length;
-  const verdict = policy === "REJECT" || rejected >= 2
-    ? "REJECT"
-    : policy === "CONDITIONAL" || conditional >= 2 || rejected === 1
-      ? "CONDITIONAL"
-      : "APPROVE";
+  const voteVerdict = rejected >= 2 ? "REJECT" : conditional >= 2 || rejected === 1 ? "CONDITIONAL" : "APPROVE";
+  const policyVeto = policy === "REJECT";
+  const verdict = policyVeto ? "REJECT"
+    : policy === "CONDITIONAL" && voteVerdict === "APPROVE" ? "CONDITIONAL" : voteVerdict;
+  const policyOverride = verdict !== voteVerdict;
+  const decisionSource = policyVeto || policyOverride ? "policy_gate" : "council_vote";
+  const criticalRules = findings.filter(finding => finding.severity === "critical");
+  const ruleNames = criticalRules.map(finding => `${finding.title} [${finding.id}]${finding.evidence ? ` (matched: "${finding.evidence}")` : ""}`).join("; ");
+  const riskBasis = {
+    reviewer_average: aggregateRisk(reviews, []),
+    policy_floor: aggregateRisk([], findings),
+    final_score: aggregateRisk(reviews, findings)
+  };
   const blockers = findings.map((finding) => finding.fix);
   for (const review of reviews) {
     for (const condition of review.conditions) {
@@ -102,14 +110,25 @@ function deterministicChair(reviews, findings) {
   }
   return {
     verdict,
-    summary: verdict === "REJECT"
-      ? "The proposed change exceeds the council's production risk threshold."
+    vote_verdict: voteVerdict,
+    policy_verdict: policy,
+    policy_veto: policyVeto,
+    policy_override: policyOverride,
+    decision_source: decisionSource,
+    policy_reasons: findings.map(({ id, title, severity, evidence }) => ({ id, title, severity, ...(evidence ? { evidence } : {}) })),
+    risk_basis: riskBasis,
+    summary: policyVeto
+      ? `Policy gate veto: ${ruleNames}. Reviewer-only verdict: ${voteVerdict}. ${policyOverride ? "The policy gate overrides the reviewer vote." : "The reviewer vote also rejects this change."}`
+      : verdict === "REJECT"
+      ? "The reviewer votes require rejection of this change."
+      : policyOverride
+        ? "The policy gate requires conditions despite the reviewers' approval."
       : verdict === "CONDITIONAL"
         ? "The change may proceed only after the listed controls are verified."
         : "The council found no blocking risk in the submitted evidence.",
     blockers: blockers.slice(0, 6),
     dissent: reviews.filter((review) => review.vote !== verdict).map((review) => reviewerDissent(review)),
-    decision_basis: `Policy gate: ${policy}. Council vote: ${reviews.filter(r => r.vote === "APPROVE").length} approve, ${conditional} conditional, ${rejected} reject.`
+    decision_basis: `Decision source: ${decisionSource === "policy_gate" ? "policy gate" : "reviewer votes"}${policyVeto ? " (veto)" : ""}. Policy: ${policy}. Reviewer-only verdict: ${voteVerdict}. Votes: ${reviews.filter(r => r.vote === "APPROVE").length} approve, ${conditional} conditional, ${rejected} reject. Risk: reviewer average ${riskBasis.reviewer_average}; policy floor ${riskBasis.policy_floor}; final ${riskBasis.final_score}.`
   };
 }
 
@@ -171,8 +190,10 @@ async function review(request, env) {
 
   const started = Date.now();
   const findings = deterministicChecks(proposal);
-  const singleReviewer = await askReviewer(env, REVIEWERS[6], proposal, provider, findings, true);
-  const reviews = await Promise.all(REVIEWERS.map((reviewer) => askReviewer(env, reviewer, proposal, provider, findings)));
+  const [singleReviewer, reviews] = await Promise.all([
+    askReviewer(env, REVIEWERS[6], proposal, provider, findings, true),
+    Promise.all(REVIEWERS.map((reviewer) => askReviewer(env, reviewer, proposal, provider, findings)))
+  ]);
   const chair = deterministicChair(reviews, findings);
   const riskScore = aggregateRisk(reviews, findings);
   const caseId = crypto.randomUUID();

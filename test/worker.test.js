@@ -137,4 +137,63 @@ test("specialist hint isolation preserves full evidence and the final policy vet
   assert.equal(body.council.verdict, "REJECT");
   assert.equal(body.evidence.ai_reviews, 7);
   assert.equal(body.evidence.prompt_version, "specialist-v2");
+  assert.equal(body.council.vote_verdict, "APPROVE");
+  assert.equal(body.council.policy_veto, true);
+  assert.equal(body.council.policy_override, true);
+  assert.equal(body.council.decision_source, "policy_gate");
+  assert.match(body.council.summary, /Policy gate veto.*public-data.*overrides/);
+  assert.equal(body.council.risk_basis.reviewer_average, 10);
+  assert.equal(body.council.risk_basis.policy_floor, 92);
+  assert.equal(body.council.risk_basis.final_score, 92);
+});
+
+test("public ALB beside multi-AZ RDS preserves conditional reviewer votes without a policy floor", async () => {
+  const response = await worker.fetch(new Request("https://cloudcourt.test/api/review", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "AWS", proposal: "Migrate a payments API to EKS using IRSA and Secrets Manager, RDS Postgres multi-AZ, public ALB (WAF not configured yet)." })
+  }), { ...env, AI: { run: async () => ({ choices: [{ message: { content: JSON.stringify(modelReview) } }] }) } });
+  const body = await response.json();
+  assert.equal(body.council.verdict, "CONDITIONAL");
+  assert.equal(body.council.vote_verdict, "CONDITIONAL");
+  assert.equal(body.council.policy_veto, false);
+  assert.equal(body.council.policy_override, false);
+  assert.equal(body.council.decision_source, "council_vote");
+  assert.deepEqual(body.policy_findings, []);
+  assert.equal(body.case.risk_score, modelReview.risk_score);
+  assert.equal(body.council.risk_basis.policy_floor, 0);
+  assert.match(body.council.decision_basis, /reviewer average 63; policy floor 0; final 63/);
+});
+
+test("a real public database veto explains the override even when all AI votes are conditional", async () => {
+  const response = await worker.fetch(new Request("https://cloudcourt.test/api/review", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "AWS", proposal: "Deploy the payments API with a database that holds customer data. The SQL database is public and permits customer queries." })
+  }), { ...env, AI: { run: async () => ({ choices: [{ message: { content: JSON.stringify(modelReview) } }] }) } });
+  const body = await response.json();
+  assert.equal(body.council.vote_verdict, "CONDITIONAL");
+  assert.equal(body.council.verdict, "REJECT");
+  assert.equal(body.council.policy_override, true);
+  assert.match(body.council.summary, /Policy gate veto.*public-data.*CONDITIONAL.*overrides/);
+  const reason = body.council.policy_reasons.find(f => f.id === "public-data");
+  assert.equal(reason.evidence, "SQL database is public");
+  assert.equal(body.council.risk_basis.policy_floor, 92);
+  const finalEvent = body.events.find(event => event.kind === "final_verdict");
+  assert.deepEqual(finalEvent.payload.policy_reasons, body.council.policy_reasons);
+  assert.equal(finalEvent.payload.policy_override, true);
+});
+
+test("baseline and specialists start without waiting for a prior model answer", { timeout: 1000 }, async () => {
+  const pending = [];
+  const response = await worker.fetch(reviewRequest(), {
+    ...env, AI: { run: () => new Promise(resolve => {
+      pending.push(resolve);
+      if (pending.length === 8) {
+        for (const complete of pending) complete({ choices: [{ message: { content: JSON.stringify(modelReview) } }] });
+      }
+    }) }
+  });
+  const body = await response.json();
+  assert.equal(pending.length, 8);
+  assert.equal(body.evidence.ai_reviews, 7);
+  assert.equal(body.comparison.single_agent.source, "workers_ai");
 });

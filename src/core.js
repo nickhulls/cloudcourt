@@ -22,14 +22,44 @@ export function findingsForReviewer(reviewer, findings) {
   return findings.filter(finding => (POLICY_DOMAINS[reviewer.id] || []).includes(finding.id));
 }
 
+function publicDataEvidence(text) {
+  // Match access stated for the data service itself, rather than nearby resources.
+  // Unrecognised prose remains for specialist review; this is not a language parser.
+  const asset = String.raw`\b(?:rds(?:\s+(?:postgres(?:ql)?|mysql|instance|database))?|(?:sql\s+)?database|(?:s3\s+)?bucket|(?:blob\s+)?storage)\b`;
+  const exposure = String.raw`(?:public(?:ly)?(?:[ -]+(?:accessible|exposed|readable|writable))?|internet[ -]+(?:facing|accessible)|world[ -]+(?:readable|writable))`;
+  const end = String.raw`(?=$|[.,;:!?]|\s+(?:and|but|with|without|for|to|on|in|because|so|by|during)\b)`;
+  const patterns = [
+    new RegExp(String.raw`\b${exposure}\s+${asset}`, "gi"),
+    new RegExp(String.raw`${asset}\s+(?:(?:is|are|will be|must be|configured as|exposed as|made)\s+)?${exposure}${end}`, "gi"),
+    new RegExp(String.raw`${asset}\s+(?:(?:is|will be)\s+)?(?:open|exposed|accessible)\s+to\s+(?:the\s+)?(?:internet|public)\b`, "gi"),
+    new RegExp(String.raw`${asset}\s+publicly_?accessible\s*[:=]\s*true\b`, "gi"),
+    new RegExp(String.raw`${asset}(?:\s+security group)?\s+(?:allows|accepts)(?:\s+(?:traffic|connections|ingress|access))?(?:\s+from)?\s+0\.0\.0\.0/0`, "gi")
+  ];
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const before = text.slice(0, match.index).split(/[,;\n]|[.!?](?=\s|$)/).at(-1);
+      const after = text.slice(match.index + match[0].length);
+      const negated = /\b(?:no|without|never)\s+(?:(?:a|an|any|the)\s+)?$/i.test(before)
+        || /\bnot\s+(?:(?:allow|enable|use|deploy|create|configure|make)\s+)?(?:(?:a|an|any|the)\s+)?$/i.test(before)
+        || /\b(?:disable|disallow|deny|block|prevent|prohibit|avoid)(?:d|ing)?\s+(?:(?:all|any|the|a|an)\s+)?$/i.test(before);
+      const disabled = /^\s*[:=]\s*(?:false|no|off|disabled)\b/i.test(after)
+        || /^\s+(?:access\s+)?(?:is\s+)?(?:disabled|denied|blocked|prohibited)\b/i.test(after);
+      if (!negated && !disabled) return match[0];
+    }
+  }
+  return null;
+}
+
 export function deterministicChecks(text) {
   const source = text.toLowerCase();
+  const publicExposure = publicDataEvidence(text);
   const checks = [
     {
       id: "public-data",
       severity: "critical",
-      title: "Potentially public data plane",
-      hit: /(public|0\.0\.0\.0\/0|internet.?facing).{0,80}(bucket|database|storage|rds|sql)|(?:bucket|database|storage|rds|sql).{0,80}(public|0\.0\.0\.0\/0|internet.?facing)/s.test(source),
+      title: "Explicit public access on a data service",
+      hit: Boolean(publicExposure),
+      evidence: publicExposure,
       fix: "Move the data service behind private connectivity and explicitly deny public access."
     },
     {
