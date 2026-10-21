@@ -4,6 +4,9 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-10-20",
   "workers_dev": true,
+  "routes": [
+    { "pattern": "cloudcourt.azureagent.co", "custom_domain": true }
+  ],
   "preview_urls": true,
   "ai": { "binding": "AI" },
   "assets": {
